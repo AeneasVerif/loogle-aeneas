@@ -34,15 +34,6 @@ except _:
     pass
 
 # Prometheus setup
-import prometheus_client
-m_info = prometheus_client.Info('versions', 'Lean and mathlib versions')
-m_info.info({'loogle': rev1, 'mathlib': rev2})
-m_queries = prometheus_client.Counter('queries', 'Total number of queries')
-m_errors = prometheus_client.Counter('errors', 'Total number of failing queries')
-m_results = prometheus_client.Histogram('results', 'Results per query', buckets=(0,1,2,5,10,50,100,200,500,1000))
-m_heartbeats = prometheus_client.Histogram('heartbeats', 'Heartbeats per query', buckets=(0,2e0,2e1,2e2,2e3,2e4))
-m_client = prometheus_client.Counter('clients', 'Clients used', ["client"])
-for l in ("web", "zulip", "json", "nvim", "vscode-lean4", "vscode-loogle", "LeanSearchClient"): m_client.labels(l)
 
 examples = [
     "Real.sin",
@@ -60,7 +51,7 @@ class Loogle():
         self.starting = True
         self.loogle = subprocess.Popen(
             #[".lake/build/bin/loogle","--json", "--interactive", "--module","Init.Data.List.Basic"],
-            [".lake/build/bin/loogle","--json", "--interactive"],
+            [".lake/build/bin/loogle","--json", "--interactive", "--module", "Aeneas", "--read-index", "index.olean"],
             stdin=subprocess.PIPE,
             stdout=subprocess.PIPE,
         )
@@ -107,16 +98,9 @@ class Loogle():
                 return {"error": "The backend process did not respond, killing and restarting..."}
 
     def query(self, query):
-        m_queries.inc()
         print(f"Query: {json.dumps(query)}", flush=True)
         output = self.do_query(query)
         # Update metrics
-        if "error" in output:
-            m_errors.inc()
-        if "count" in output:
-            m_results.observe(output["count"])
-        if "heartbeats" in output:
-            m_heartbeats.observe(output["heartbeats"])
         return output
 
 
@@ -141,7 +125,7 @@ def zulHit(hit):
 def zulQuery(sugg):
     return f"[`{sugg}`]({querylink(sugg)})"
 
-class MyHandler(prometheus_client.MetricsHandler):
+class MyHandler(BaseHTTPRequestHandler):
 
     def return404(self):
         self.send_response(404)
@@ -215,7 +199,6 @@ class MyHandler(prometheus_client.MetricsHandler):
                 self.send_response(400)
                 self.end_headers()
                 return
-            m_client.labels("zulip").inc()
 
             length = int(self.headers.get('content-length'))
             message = json.loads(self.rfile.read(length))
@@ -281,21 +264,6 @@ class MyHandler(prometheus_client.MetricsHandler):
             url_query = url.query
             params = urllib.parse.parse_qs(url_query)
             if "q" in params and len(params["q"]) == 1:
-                if want_json:
-                    if "lean4/" in self.headers.get("x-loogle-client", ""):
-                        m_client.labels("vscode-lean4").inc()
-                    elif "LeanSearchClient" in self.headers["user-agent"]:
-                        m_client.labels("LeanSearchClient").inc()
-                    elif "vscode" in self.headers["user-agent"]:
-                        m_client.labels("vscode-loogle").inc()
-                    elif "lean.nvim" in self.headers["user-agent"]:
-                        m_client.labels("nvim").inc()
-                    elif "lean+nvim" in self.headers["user-agent"]:
-                        m_client.labels("nvim").inc()
-                    else:
-                        m_client.labels("json").inc()
-                else:
-                    m_client.labels("web").inc()
 
                 query = params["q"][0].strip().removeprefix("#find ").strip()
                 if query:

@@ -9,8 +9,8 @@ package «loogle» {
   testDriver := "Tests"
 }
 
--- require std from git "https://github.com/leanprover/std4" @ "main"
-require mathlib from git "https://github.com/leanprover-community/mathlib4" @ "master"
+require mathlib from git "https://github.com/leanprover-community/mathlib4" @ "v4.17.0"
+require aeneas from git "https://github.com/AeneasVerif/aeneas" @ "main" / "backends/lean"
 
 meta if run_io Option.isSome <$> IO.getEnv "LOOGLE_SECCOMP" then do
   target loogle_seccomp.o pkg : System.FilePath := do
