@@ -9,7 +9,7 @@ package «loogle» {
   testDriver := "Tests"
 }
 
-require mathlib from git "https://github.com/leanprover-community/mathlib4" @ "v4.19.0-rc3"
+require mathlib from git "https://github.com/leanprover-community/mathlib4" @ "v4.19.0"
 require aeneas from git "https://github.com/AeneasVerif/aeneas" @ "main" / "backends/lean"
 
 meta if run_io Option.isSome <$> IO.getEnv "LOOGLE_SECCOMP" then do
